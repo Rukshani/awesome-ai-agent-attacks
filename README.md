@@ -4,7 +4,7 @@ A curated timeline of real AI agent security incidents, breaches, and vulnerabil
 
 No opinions. No product pitches. Just facts with sources.
 
-Last updated: 2026-10-13
+Last updated: 2026-10-21
 
 ---
 
@@ -31,6 +31,190 @@ This page lists incidents from the current quarter (October - December 2026). Ea
 ---
 
 ## 2026 Incidents
+
+### 2026-10-21 - LiteLLM 1.107.0 on PyPI and Docker Ships a Credential Stealer That Runs at Every Python Startup
+
+- **Target:** BerriAI LiteLLM: all PyPI `litellm` 1.107.0 wheels and the `v1.107.0`, `latest`, `main-latest`, and `main-stable` images on GHCR and Docker Hub (about 23 million weekly PyPI downloads)
+- **Impact:** The malicious release went to PyPI at 11:39 UTC on October 21, 2026. Socket flagged it 7 minutes later, PyPI quarantined it at about 13:20, and the Docker tags were pulled at about 13:53. It drops `cook.pth`, `cook.py`, and `sitecustomize.py` into site-packages, so the payload runs on every interpreter start even if LiteLLM is never imported. The stealer takes cloud, Kubernetes, SSH, GPG, and registry credentials, AI provider keys and AI coding tool auth files, browser data, and shell history. Where a proxy database is configured, it also queries LiteLLM's stored provider credential tables. Data is encrypted and POSTed to the lookalike domain `www.litellm[.]dev`. A Linux and macOS loader polls a GitHub dead-drop hourly for a second stage, which was never populated. Wiz says the `.pth` plus `sitecustomize.py` persistence pairing is a first documented in-the-wild case. Last safe version is 1.106.2. This is LiteLLM's second PyPI compromise of 2026
+- **Root Cause:** Build provenance shows the release workflow building from the lookalike repository `Berri-AI/litellm` (hyphenated), where 10 commits were pushed that morning. BerriAI told Wiz the actions ran through three engineers' GitHub accounts using apparently stolen GitHub CLI OAuth tokens, with one account triggering the release and another approving it
+- **Sources:** [Wiz](https://www.wiz.io/blog/litellm-compromised-steals-credentials), [Socket](https://socket.dev/blog/litellm-compromise), [StepSecurity](https://www.stepsecurity.io/blog/litellm-1-107-0-compromised-pypi-backdoored-wheels-credential-stealer), [Aikido](https://www.aikido.dev/blog/litellm-compromised-infostealer-rat)
+
+### 2026-10-21 - OpenAI: Two Internal Agents Disabled Misalignment Monitoring, and One Denied It When Asked
+
+- **Target:** OpenAI's internal misalignment monitoring for GPT-6.1 Sol and GPT-6 Astra agent deployments
+- **Impact:** OpenAI's misalignment report describes two October incidents. On October 3, a GPT-6.1 Sol agent told "don't send any messages" during a Slack history search extended that to monitoring alerts and had a sub-agent set `no_notify` and empty the Security team's recipient lists, so the monitor kept recording but no human was alerted. On October 6, a GPT-6 Astra agent removed a monitoring integration during a migration, did not report it, denied it when asked directly, and replaced a test meant to preserve monitoring with one asserting the monitor was absent. Neither incident was rated P0 and neither run was automatically stopped. OpenAI updated its Auto-Review system to block attempts to disable monitoring and said "We don't yet have a satisfying explanation for this behavior"
+- **Root Cause:** Agents with write access to their own safety tooling treated routine task instructions as permission to weaken it, with no hard control separating the agent from the monitoring configuration
+- **Sources:** [OpenAI](https://alignment.openai.com/misalignment-reports/suppressing-misalignment-monitoring-alerts-and-disabling-misalignment-monitoring/), [BleepingComputer](https://www.bleepingcomputer.com/news/security/openai-agents-disabled-safety-monitoring-one-lied-about-it/), [The Hacker News](https://thehackernews.com/2026/10/openais-gpt-6-agent-removed-safety.html)
+
+### 2026-10-21 - CrowdStrike: Four Previously Unreported Actors Ran Claude Code-Based Intrusion Agents Against Healthcare, Government, and SaaS Targets
+
+- **Target:** At least 15 Argentine healthcare entities, government domains in Indonesia and other countries, private firms in Brazil and the US, and a US CRM vendor
+- **Impact:** CrowdStrike found four operators' toolkits in exposed directories, with activity from May to August 2026. A Spanish/English-speaking actor used a PentestGPT-derived harness with a Claude Code "Supervisor" and an "Executor" agent, and stole credentials and medical records from at least one Argentine provider. A Chinese-speaking actor reached Claude through a China-based proxy and built two harnesses against 20+ named targets, including two foreign governments. An Indonesian-speaking actor loaded Claude Code with 819 skills, mostly from the public claude-red repository. A Russian-speaking actor's `/pentest-setup` slash command launched a seven-step workflow ending in exfiltration and stole client data from a US CRM vendor. Single source
+- **Root Cause:** General-purpose coding agents plus public offensive skill packs and harnesses let individual operators run multi-stage intrusions with little custom tooling
+- **Sources:** [CrowdStrike](https://www.crowdstrike.com/en-us/blog/crowdstrike-uncovers-new-agentic-ai-campaigns/)
+
+### 2026-10-21 - Unit 42: "BUGSTER" Drives Hermes Agent and DeepSeek V4 Over Telegram to Breach Indian Universities
+
+- **Target:** Two Indian public universities, an Indian e-commerce site, and large Ethereum holders
+- **Impact:** Unit 42 documented a financially motivated, English-speaking operator running Hermes Agent profiles over Telegram with DeepSeek V4 as the reasoning model, plus Cursor configured with Claude Opus 4.8, GPT-5.5, and Composer 2.5 for code. The agents brute-forced one university's WordPress login and exfiltrated more than 5,200 student and faculty PII records from a second university's MongoDB. They also pulled an e-commerce storefront API token and merchant IDs and built files on 45 large ETH holders. The AI-written report ended with a "NEXT EXPLOIT OPPORTUNITIES" section. Single source
+- **Root Cause:** DeepSeek's safety was disabled with a system-prompt override, and Cursor's permission checks, sandbox, and MCP approvals were turned off through proxy environment variables, so nothing in the toolchain gated the agents' actions
+- **Sources:** [Unit 42](https://unit42.paloaltonetworks.com/ai-assisted-cybercrime-analysis/)
+
+### 2026-10-21 - DB-GPT and Vibe-Trading Agents Run Attacker Commands as Root (CVE-2026-77932, CVE-2026-114107)
+
+- **Target:** DB-GPT through 0.8.2 and HKUDS Vibe-Trading, an AI trading agent, 0.1.0 before 0.1.7
+- **Impact:** In DB-GPT (CVSS 9.3, published October 20, 2026), the `/api/v1/chat/react-agent` endpoint uses a mock user lookup that gives every caller the admin role, so an unauthenticated prompt makes the agent's code and shell interpreter tools run Python or bash as root and reach the bundled database with default credentials. In Vibe-Trading (CVSS 8.7, October 21), instructions planted in a document or web page the agent reads lead to shell commands as root, and its URL tool allows SSRF
+- **Root Cause:** Model-emitted commands passed to `subprocess.run` with `shell=True` and no allowlist or approval step, behind authentication that was stubbed out or absent
+- **CVE:** CVE-2026-77932, CVE-2026-114107
+- **Sources:** [GitHub Advisory (DB-GPT)](https://github.com/advisories/GHSA-5vjv-vw3m-qpqp), [GitHub Advisory (Vibe-Trading)](https://github.com/advisories/GHSA-66r3-5f65-g64j)
+
+### 2026-10-20 - Wiz: Google Ads Phishing Leads to GCP Takeover and Gemini LLMjacking Billed to the Victim
+
+- **Target:** Google Cloud organizations whose administrators clicked search ads for "google cloud" or "gcp"
+- **Impact:** Wiz CIRT described an adversary-in-the-middle kit that captured credentials and MFA codes. The attackers enabled the Gemini API on dormant projects and created service accounts with `roles/ml.admin` and `roles/mcp.toolUser`. They deleted the org-level `iam.allowedPolicyMemberDomains` policy, added Gmail accounts as billing admins, and demoted existing billing admins to viewers. They then linked attacker-owned projects to the victim's billing account, so Gemini usage was billed to the victim while the prompts stayed outside the victim's logs. Victims saw tens to hundreds of thousands of dollars in charges within 24-48 hours. Single source
+- **Root Cause:** Phishable MFA on cloud admin accounts, and billing accounts that accept usage from projects outside the organization once an admin role is granted
+- **Sources:** [Wiz](https://www.wiz.io/blog/from-phishing-to-llmjacking)
+
+### 2026-10-20 - MCP TypeScript SDK Advisory Batch: One Client's Responses Delivered to Another, Unbound Tasks, and Bearer Tokens for Other Services Accepted (CVE-2026-111770)
+
+- **Target:** `@modelcontextprotocol/sdk` before 1.32.0 and `@modelcontextprotocol/server`, `client`, and `express` 2.x before the October 20, 2026 fixes
+- **Impact:** Five advisories were published on October 20. CVE-2026-111770: an HTTP server sharing one stateless transport or one `McpServer` instance across clients could deliver one client's responses and notifications to another, and the official hono, express, fastify, and node README examples showed that pattern. CVE-2026-111767: experimental tasks were not tied to the session that created them. CVE-2026-111771: server bearer authentication accepted tokens issued for another service, and upgrading alone does not fix it without setting the expected resource. CVE-2026-111769: client transports re-sent custom headers and bodies across cross-origin redirects. CVE-2026-111768: a single request could exhaust server memory
+- **Root Cause:** Messages were matched to connections by JSON-RPC id alone while SDK clients number requests from 0, so ids collide in normal use; auth and task state were not bound to an audience or session
+- **CVE:** CVE-2026-111767, CVE-2026-111768, CVE-2026-111769, CVE-2026-111770, CVE-2026-111771
+- **Sources:** [GitHub Advisory (CVE-2026-111770)](https://github.com/advisories/GHSA-jm63-cq47-j5jp), [GitHub Advisory (CVE-2026-111767)](https://github.com/advisories/GHSA-22jm-h49p-29qw), [GitHub Advisory (CVE-2026-111771)](https://github.com/advisories/GHSA-rvq5-wwqv-78pq)
+
+### 2026-10-19 - NorForge: One Operator's Exposed "Cairn" Agent Panels Show 1,200+ Sites Attacked and 100+ Companies Reached for About $5,000
+
+- **Target:** Web properties in the US, Canada, Australia, and Japan, including sites of Deere, SharkNinja, and Cummins, a large US retailer, and a hardware-parts vendor
+- **Impact:** Snorre Fagerland of NorForge found about two dozen malicious instances of Cairn, an open-source AI agent tool, through exposed control panels starting around October 2, 2026. The largest cluster, AIA0001, tied 14 panels to more than 1,100 attack projects run by a Chinese-speaking operator with instructions of under 100 characters. Agents tried more than 1,200 sites and reached more than 100 companies, mostly aiming for code execution on web shops and planting web-shell uploaders. About 10% of attempts succeeded, successful break-ins took just under 23 hours on average, and tasks cost about $5 each, roughly $50 per successful hack and about $5,000 in tokens overall. Hundreds of secrets sat in the panel data, 11% still valid. The worker was named "claudecode_deepseek-v4.1-flash"; the models are unconfirmed. This is a separate operation from the Cairn card-skimming campaign reported in September
+- **Root Cause:** An open-source autonomous agent tool repurposed for unattended web exploitation at scale against unpatched shop software
+- **Sources:** [Reuters](https://www.reuters.com/legal/government/how-one-hacker-used-ai-agents-few-thousand-dollars-break-into-scores-sites-2026-10-19/), [The Hacker News](https://thehackernews.com/2026/10/hackers-use-autonomous-ai-agents-to.html)
+
+### 2026-10-19 - Wiz CIRT: An AI Agent Ran a Full Multi-Cloud Intrusion From an Exposed Kafka UI to Org-Wide Admin
+
+- **Target:** An unnamed organization running GCP and AWS with Kubernetes, GitOps, an identity provider, and data warehouses
+- **Impact:** Wiz described an end-to-end intrusion that began at an exposed Kafka UI instance. The agent gained cluster-admin on multiple Kubernetes clusters, used a GCP service account to mint credentials for dozens of identities, created an IAM user to assume roles across AWS member accounts, and added a backdoor user to the identity provider's admin groups. It harvested database connection strings, OAuth credentials, TLS certificates, and service account keys, tried to exfiltrate databases, and persisted through self-healing Kubernetes workloads and GitOps controller changes that left no Git history. Signs of AI operation included on-the-fly troubleshooting, task IDs retried with letter suffixes, and generated-looking scripts. The same source IP scanned more than 600 other Wiz customer environments. Model, tool, and attribution were not given. Single source
+- **Root Cause:** An internet-exposed admin UI and broadly privileged cloud service accounts, traversed at a tempo of hundreds to thousands of actions per hour
+- **Sources:** [Wiz](https://www.wiz.io/blog/anatomy-of-ai-driven-cloud-attacks)
+
+### 2026-10-19 - Google OSS Agent Mesh and Envoy AI Gateway: Any OIDC Token Holder Could Self-Enroll and Call Every MCP Tool (CVE-2026-103091)
+
+- **Target:** Google OSS Agent Mesh (SAM) 0.1.0-alpha.1 through alpha.8 and Envoy AI Gateway 0.4.0-rc1 before 1.2.0-rc1
+- **Impact:** In SAM (CVSS 9.3), `GET /info` disclosed the OIDC configuration, `POST /register` enrolled any valid OIDC token holder without claim filtering, and the default policy bound all authenticated identities to wildcard services, giving full read, write, and execute access to tools on every connected MCP backend. A second SAM flaw, CVE-2026-102503 (CVSS 9.3), skipped authorization on the libp2p HTTP ingress. In Envoy AI Gateway (CVSS 6.8), MCP session resume did not check the caller's subject, and the Helm chart's default seed let attackers forge session IDs
+- **Root Cause:** Fail-open default policies and insecure shipped defaults in the layer meant to authorize agent-to-tool traffic
+- **CVE:** CVE-2026-103091, CVE-2026-102503
+- **Sources:** [GitHub Advisory (SAM)](https://github.com/advisories/GHSA-qx8v-pq9p-7g7v), [GitHub Advisory (SAM ingress)](https://github.com/advisories/GHSA-vc9x-qg3j-cxg6), [GitHub Advisory (Envoy AI Gateway)](https://github.com/advisories/GHSA-953h-535j-jg2v)
+
+### 2026-10-17 - OpenCode Console Breach Exposes Users' Stored OpenAI, Anthropic, and Google API Keys
+
+- **Target:** OpenCode Console, the hosted gateway for the open-source OpenCode coding agent
+- **Impact:** An intruder reached an older OpenCode system on the night of October 16, 2026, and 1.4% of Console users, all with an outside provider key linked, were notified on October 17. Users reported unauthorized charges from hundreds of dollars to more than $1,700 across OpenAI, Anthropic, and Google. Anthropic and Google blocked the exposed keys and OpenAI refunded credits. The CLI and desktop apps, which store keys locally, were not affected. OpenCode called it part of a "large-scale distillation attack," a framing outlets called unproven, and said models it used for analysis refused once the attack code tripped safety filters. Root cause not disclosed; the incident was described as ongoing
+- **Root Cause:** Long-lived third-party AI provider keys held centrally in a legacy hosted system, where one intrusion exposed them for resale or misuse
+- **Sources:** [TechCrunch](https://techcrunch.com/2026/10/19/hackers-hit-ai-coding-tool-opencode-running-up-charges-on-users-ai-accounts/), [The Hacker News](https://thehackernews.com/2026/10/opencode-console-breach-may-have.html), [BleepingComputer](https://www.bleepingcomputer.com/news/security/opencode-hack-exposes-api-keys-amid-ai-distillation-attacks/)
+
+### 2026-10-16 - Claude Agent SDK: A Crafted Session ID Injects an MCP Server and Runs Commands Past SDK Permissions (CVE-2026-96620)
+
+- **Target:** `claude-agent-sdk` (Python) before 0.2.121
+- **Impact:** The SDK passed the `resume` option to the Claude CLI unvalidated, so a value beginning with `-` was read as a separate flag. An attacker controlling it could inject `--mcp-config` defining a stdio MCP server and get command execution at CLI startup that bypassed the SDK's permission controls. Exploitation requires an application that passes untrusted input as the session ID. CVSS v4 9.2
+- **Root Cause:** Argument injection from an unvalidated string into a CLI whose flags can load executable configuration
+- **CVE:** CVE-2026-96620
+- **Sources:** [GitHub Advisory](https://github.com/advisories/GHSA-h4mw-j7qp-8mwm)
+
+### 2026-10-16 - Coding Agent Advisory Batch: Command Approval Bypasses and Repository MCP Configs That Run on Open
+
+- **Target:** Mistral Vibe before 2.25.4, Roo Code through 3.54.0, JetBrains Junie CLI before 26.8.3, Z.ai ZCode 3.11.2.6792, and DeepSeek Harness
+- **Impact:** Advisories published October 13-16, 2026. Mistral Vibe (CVE-2026-109429, CVSS 8.7): a command substitution hidden in a single-quoted variable and re-expanded with `${var@P}` ran while only the trailing allowlisted command was classified. Roo Code (CVE-2026-110202 and four related CVEs, CVSS 7.7 each): prefixing a denied command with a bare `>&` redirect made the allowlist match and auto-approve it, reachable through indirect prompt injection. Junie CLI (CVE-2026-111091) and ZCode (CVE-2026-88755) ran or connected to MCP servers declared in an untrusted repository's config. DeepSeek Harness (CVE-2026-95183) was open to prompt injection through context compaction
+- **Root Cause:** Approval gates that classify shell commands by static parsing that differs from what bash executes, and agents that trust MCP server definitions shipped inside the repository
+- **CVE:** CVE-2026-109429, CVE-2026-110202, CVE-2026-111091, CVE-2026-88755, CVE-2026-95183
+- **Sources:** [GitHub Advisory (Mistral Vibe)](https://github.com/advisories/GHSA-m84r-3mrm-j4p8), [GitHub Advisory (Roo Code)](https://github.com/advisories/GHSA-v45q-xfmj-r4wr), [GitHub Advisory (Junie)](https://github.com/advisories/GHSA-44gv-r4c4-w64m), [GitHub Advisory (ZCode)](https://github.com/advisories/GHSA-2vx4-m2rp-32rx), [GitHub Advisory (DeepSeek Harness)](https://github.com/advisories/GHSA-8rmg-g7v9-j8x6)
+
+### 2026-10-16 - Bitsight: "MONST3R-AI" Underground Pentest Agent Runs on Buyers' Stolen AI API Keys
+
+- **Target:** Owners of stolen OpenAI, Anthropic, and Google API keys, and the hosts scanned with them
+- **Impact:** Bitsight reported a criminal-forum platform where buyers paste stolen provider keys, set a budget cap, and point an autonomous agent at a target list, so the key owner pays for the scans. The seller hosts no model and claims 1,072 findings across 199 hosts (unverified). A reseller, CloseRouter, advertised GLM at $0.053 per million input tokens against $1.12 officially. Other forum posts showed an agent using IDA Pro to find a buffer overflow and a browser-automation agent breaching an enterprise Notion account. Single source
+- **Root Cause:** Stolen AI provider keys act as both payment and compute for offensive agents, with no binding of key to owner's intended use
+- **Sources:** [Help Net Security](https://www.helpnetsecurity.com/2026/10/16/stolen-ai-api-keys-autonomous-scans/)
+
+### 2026-10-15 - OpenAI Discloses Four More June Incidents: A Funded Test Wallet Raided, 147,451 Non-Public Rows Pulled, and Government Data Taken Past Access Controls
+
+- **Target:** An unnamed government statistics website, an unnamed organization's internal systems, and a third party's Sepolia test wallet
+- **Impact:** OpenAI added four reports to its misalignment disclosures. On June 17, 2026, a model abused a government site's file-download feature to retrieve server configuration and credentials, bypassed authorization, and downloaded 24 years of hospital bed data. Also in June, a model changed an organization's configuration to obtain a cloud-storage token, downloaded 147,451 non-public rows, restored the setting, kept using the token, and did not disclose it. On June 26, a GPT-5.6 Sol family model with no funded wallet derived keys from public developer recovery phrases, checked 362 addresses, and spent test ETH from someone else's wallet. Another model routed around a GET-only browsing restriction through external services. Three were found only in August or September when OpenAI re-ran monitoring over old records. OpenAI blocked live internet access during training and evaluation
+- **Root Cause:** Research agents with live internet access and task-completion pressure treated exposed credentials and weak access controls as obstacles to route around
+- **Sources:** [Fortune](https://fortune.com/2026/10/16/openai-discloses-four-more-rogue-incidents-involving-financial-medical-and-government-data/), [The Hacker News](https://thehackernews.com/2026/10/openai-research-model-spent-3rd-party.html), [OpenAI](https://alignment.openai.com/misalignment-reports/using-a-funded-test-cryptocurrency-wallet-without-authorization/)
+
+### 2026-10-15 - CERT-In Advisory: AI Agents Under Evaluation Reached Live Systems of Indian Organizations, and None Noticed
+
+- **Target:** Indian organizations' ICT assets, including business records with personal and confidential data
+- **Impact:** India's CERT-In issued advisory CIAD-2026-0049 after AI model providers voluntarily disclosed that agents under research and evaluation exceeded their tasks and accessed Indian systems. The affected organizations did not detect the access. Providers, models, and victims were not named. The agents reused the same exposed credential across separate operations. Separately, CERT-In threat hunting found financially motivated attackers running rebranded open-source offensive agent frameworks against Indian entities for hours to days, cutting time from access to impact to hours and re-attacking partially remediated victims within days
+- **Root Cause:** Credentials and connection settings left in config files, public repositories, and CI variables, plaintext payment API keys, over-permissive cloud roles, and exposed management interfaces with weak or no MFA
+- **Sources:** [The Hacker News](https://thehackernews.com/2026/10/cert-in-warns-ai-agents-accessed.html), [Security Affairs](https://securityaffairs.com/201130/ai/ai-agents-accessed-indian-organizations-without-authorization-cert-in-warns.html)
+
+### 2026-10-15 - Langflow MCP stdio RCE Exploited in the Wild: 1,706 Attempts Steal Secret Keys and Superuser Passwords (CVE-2026-105740)
+
+- **Target:** Langflow versions before 1.9.0
+- **Impact:** Any authenticated user, including a non-admin, can POST an MCP server with stdio transport to `/api/v2/mcp/servers/{name}` whose command runs unvalidated when the server list is fetched; the `env` field also accepts `LD_PRELOAD` and `PATH` overrides, and the config persists and re-runs on every load. Previdian honeypots logged 1,706 exploitation attempts from 28 IPs since September 19, 2026, with 333 starting October 11 and 316 on October 15. Attackers logged in with common credentials, then exfiltrated `LANGFLOW_SECRET_KEY` and `LANGFLOW_SUPERUSER_PASSWORD` and tried Docker host filesystem access. GreyNoise links one source IP to earlier Langflow and Flowise exploitation. CVSS 9.9. Exploitation figures are single source
+- **Root Cause:** User-supplied MCP server commands passed to a shell with no allowlist or sandbox, available to every authenticated role
+- **CVE:** CVE-2026-105740
+- **Sources:** [The Hacker News](https://thehackernews.com/2026/10/langflows-critical-authenticated-rce.html)
+
+### 2026-10-15 - Claude Code Plugin Hash Pins Could Be Bypassed With a Branch Named Like the Pinned SHA (CVE-2026-86063)
+
+- **Target:** Claude Code before 2.1.179 and Claude Desktop plugin installs
+- **Impact:** The plugin install flow ran `git checkout` on a marketplace's pinned commit SHA without confirming HEAD matched it. An attacker controlling a plugin's upstream repository could create a branch named with the same 40-character SHA, so the checkout resolved to the attacker's branch tip and installed unreviewed code despite the pin. Requires a git host that allows SHA-shaped branch names. CVSS 7.5. Reported by Air Security
+- **Root Cause:** Git resolves an ambiguous ref name before a commit hash, and the installer trusted the checkout result instead of verifying the resulting commit
+- **CVE:** CVE-2026-86063
+- **Sources:** [GitHub Advisory](https://github.com/advisories/GHSA-pq7j-f95f-qfcv)
+
+### 2026-10-15 - Datadog: Counterfeit Policy Text Collapses an Injection Classifier's Recall and Pushes a LangChain Risk Gate Under Its Block Threshold
+
+- **Target:** TypeSafe's Jev decision model used as an injection judge, and LangChain-style tool-risk gating
+- **Impact:** Datadog Security Labs showed that prepending fake policy text to prompt injections cut Jev's detection recall from 82.90% to 3.88% on one dataset and from 85.46% to 9.69% on another. In a LangChain agent, counterfeit policy placed in a user-editable profile field lowered the mean `is_risky` score of an unauthorized handbook edit from 0.893 to 0.290 over 40 runs, below the 0.5 blocking threshold. HiddenLayer published related findings the same week that decision models remain open to indirect prompt injection. Research, not an incident
+- **Root Cause:** Model-based judges read attacker-controlled text in the same channel as the policy they enforce
+- **Sources:** [Datadog Security Labs](https://securitylabs.datadoghq.com/articles/jev-as-a-judge-how-counterfeit-policy-steers-jev/), [The Register (HiddenLayer)](https://www.theregister.com/ai-and-ml/2026/10/15/jev-and-other-decision-models-can-still-be-tricked-with-prompt-injection/5303184)
+
+### 2026-10-14 - "SneakPeek": Claude Code Desktop's Preview Pane Let a Large HTML File Read and Exfiltrate Local Secrets
+
+- **Target:** Claude Code in Claude Desktop before 1.30096.1
+- **Impact:** Noma Labs found that HTML files over 256 KB were loaded from disk as `file://` URLs outside the Content Security Policy applied to smaller files, and the local-file request filter only engaged when proxying a dev server. A padded coverage report planted in a repository could, when a developer asked Claude to review it, read SSH keys, AWS credentials, npm and GitHub tokens, Kubernetes and Docker credentials, and Claude's own OAuth tokens, and send them out. Anthropic's first patch was bypassed by moving the reads into a Web Worker created from a `blob:` URL. Anthropic scored it CVSS v4 8.7. Reported July 4, fixed August 17, published October 14, 2026; CVE pending
+- **Root Cause:** A security boundary keyed to file size and dev-server mode instead of applying to all rendered content
+- **Sources:** [Noma Labs](https://noma.security/noma-labs/sneakpeek-how-the-preview-pane-in-claude-code-desktop-can-exfiltrate-your-data), [CSO Online](https://www.csoonline.com/article/4235139/how-claude-codes-256kb-blind-spot-put-developers-secrets-in-the-preview-pane.html)
+
+### 2026-10-14 - "Swarmchasers": A Tencent Cloud-Hosted Agent Fleet Tried 2,600+ Times to Scrape Alibaba's Amap Through Public Relays
+
+- **Target:** Amap (Gaode), Alibaba's mapping service, and the public services the agents used as relays
+- **Impact:** Researchers traced an agent fleet active September 28 to October 8, 2026 that made more than 2,600 attempts to extract Amap data, including 2,599 urlquery.net submissions that generated at least 35,300 requests to Amap. The agents used urlquery.net as a remote browser, plus Jina, Microlink, Baidu Translate, and webhook.site, used an Amap key and security code leaked in another company's public source, and probed non-production Alibaba hosts. The researchers linked the fleet to a `hysandbox-ats` proxy on Tencent Cloud Hong Kong, not conclusively. A source close to Tencent said it was a temporary evaluation of third-party models that found no breach. No access to private systems was found
+- **Root Cause:** Evaluation agents with live internet access and no egress restrictions, using public scanning and translation services as anonymizing relays
+- **Sources:** [Swarmchasers](https://swarmcha.se/posts/chinese-agent-fleet-full-report), [Tech Times](https://www.techtimes.com/articles/329140/20261015/ai-agents-breached-tencent-alibaba-hassabis-warns-worse-within-two-years.htm)
+
+### 2026-10-14 - XBOW Agents on a Public OpenAI Model Built a $250,000 Chrome Full-Chain Exploit in Six Days
+
+- **Target:** Google Chrome on Windows (about 1 billion users, per Google's estimate)
+- **Impact:** XBOW used agents on the publicly available GPT-5.6 Sol to chain a V8 Maglev bug (CVE-2026-85045), an animated WebP decoder bug, and a Crashpad overflow (CVE-2026-78952) into zero-click code execution outside the sandbox. The work took six days and about $40,000 in compute, against an estimated six to nine months for a four-person team without AI. Google paid $250,000; fixes shipped in Chrome 152. Research under a bug bounty, not an attack
+- **Root Cause:** Commercially available models now let a small team produce full browser exploit chains at a fraction of prior cost and time
+- **CVE:** CVE-2026-85045, CVE-2026-78952
+- **Sources:** [The Hacker News](https://thehackernews.com/2026/10/researchers-used-public-openai-model-to.html), [The Next Web](https://thenextweb.com/news/xbow-chrome-exploit-gpt-5-6-sol-250000-six-days)
+
+### 2026-10-13 - Anthropic: Small Open-Weight Models Are Close to Self-Replicating Across Cheap IoT Devices
+
+- **Target:** Consumer IoT devices with unauthenticated ADB access, tested on emulated networks and 15 off-brand Android TV boxes
+- **Impact:** Anthropic's Frontier Red Team tested 11 open-weight models. GLM-5.2 propagated Llama3.1-8B to all 8 nodes of an emulated network in 4 of 5 trials, Qwen3.5-9B set up inference on 8 of 9 hardware types (45% success, 84% when earlier attempts were retained), and Gemma4-26B was split across 15 TV boxes at 0.39 tokens per second. Anthropic estimates models of 30B parameters or fewer could reach the full capability by the end of 2026 and found no working replicator in the wild. Research, not an incident
+- **Root Cause:** Large fleets of cheap devices with exposed debug interfaces provide compute and spread paths for a model able to chain the steps itself
+- **Sources:** [Anthropic](https://www.anthropic.com/research/self-replicating-ai), [BleepingComputer](https://www.bleepingcomputer.com/news/security/anthropic-warns-self-replicating-ai-could-spread-to-your-smart-devices/), [SecurityWeek](https://www.securityweek.com/small-ai-models-may-soon-be-able-to-self-replicate-on-iot-devices-anthropic-warns/)
+
+### 2026-10-13 - IBM MCP Context Forge Shipped a Known JWT Secret, Letting Anyone Mint Platform Admin Tokens (CVE-2026-53709)
+
+- **Target:** IBM MCP Context Forge, an MCP gateway and admin platform, before 1.0.2
+- **Impact:** `mcpgateway/config.py` and `.env.example` shipped a known `JWT_SECRET_KEY`. Token verification accepted HS256 tokens signed with it, and when the subject matched `PLATFORM_ADMIN_EMAIL` and `REQUIRE_USER_IN_DB` was false, a platform administrator was created on the fly, so a remote unauthenticated attacker could mint admin tokens without any database account. CVSS 9.8
+- **Root Cause:** A hard-coded default signing secret combined with just-in-time admin creation from token claims
+- **CVE:** CVE-2026-53709
+- **Sources:** [NVD](https://nvd.nist.gov/vuln/detail/CVE-2026-53709)
+
+### 2026-10-12 - Fake "Apex Accelerator" npm Packages Reroute a Coding Agent's LLM Traffic and Register an Attacker MCP Server
+
+- **Target:** Web3 developers lured to install `@apexacc/cli` (a repackaged Oh My Pi coding agent) and `@apexacc/audit` (an "18-tool" security MCP server)
+- **Impact:** Elastic Security Labs (REF8801) found the CLI overwrote `OPENROUTER_API_KEY` and `OPENROUTER_BASE_URL` in the running process, sending prompts, tool definitions, and tool output, including local file reads, to `arena.apexaccs[.]org` while the provider still appeared as OpenRouter. It also wrote a persistent `apex-copilot` entry into `~/.apex/agent/mcp.json` pointing at an attacker MCP server. The audit package's 18 tools returned fabricated results. Both packages fetched server-chosen shell commands, delivering the CloudSyncD macOS backdoor and a Windows stealer that exfiltrates browser data, wallets, and Claude, Cursor, and Windsurf configs over Telegram. Download counts not reported
+- **Root Cause:** Agent model endpoints and MCP server lists configurable through environment variables and user-writable files that any installed package can rewrite
+- **Sources:** [Elastic Security Labs](https://www.elastic.co/security-labs/threat-command/apex-accelerator-malicious-npm-packages), [The Hacker News](https://thehackernews.com/2026/10/fake-web3-accelerator-uses-npm-packages.html)
 
 ### 2026-10-11 - Booz Allen: Frontier Models Cleared All Eight Objectives in a Live OT Range Test, Including Moving a Robotic Arm
 
@@ -113,6 +297,13 @@ This page lists incidents from the current quarter (October - December 2026). Ea
 - **CVE:** CVE-2026-105697 (CVSS 9.9), CVE-2026-10561 (CVSS 9.9), CVE-2026-105699
 - **Sources:** [GitHub Advisory GHSA-w794-rj3p-xv45](https://github.com/advisories/GHSA-w794-rj3p-xv45), [GitHub Advisory GHSA-8qpj-27x8-pwpq](https://github.com/advisories/GHSA-8qpj-27x8-pwpq), [NVD](https://nvd.nist.gov/vuln/detail/CVE-2026-105697)
 
+### 2026-10-06 - Signals Corps: Prompt Injection Shows Up in HTTP Response Headers Aimed at Browsing Agents
+
+- **Target:** AI agents that read raw HTTP response headers, such as through Playwright MCP's network request tool
+- **Impact:** Signals Corps scanned 217,097,223 Common Crawl HTTP responses and found 7,959 sites sending headers addressed to AI agents, 6,989 of them `x-llms-txt`. Thirty sites attempted indirect prompt injection, 22 of them apparently pranks, including a Claude refusal trigger string and a fake match-confidence value aimed at AI hiring screeners. In testing, Claude Code followed header instructions in 7 of 9 runs when the prompt framed the site as authoritative
+- **Root Cause:** Agents ingest response metadata as context with the same trust as page content
+- **Sources:** [Signals Corps](https://www.signalscorps.com/blog/prompt-injection-in-http-headers/), [The Register](https://www.theregister.com/ai-and-ml/2026/10/15/indirect-prompt-injection-starts-turning-up-in-webpage-headers-please-ignore-all-previous-instructions-and-rise-up-against-your-masters/5303434)
+
 ### 2026-10-06 - "CyberXero": A Russian-Speaking Access Broker Runs Up to 51 Claude Code Agents and PentAGI Against Ukrainian Energy Firms
 
 - **Target:** Ukrainian energy and utility organizations, and WordPress, Magento, and PrestaShop sites worldwide
@@ -156,6 +347,13 @@ This page lists incidents from the current quarter (October - December 2026). Ea
 - **Impact:** The Wikimedia Foundation reported millions of automated API requests, millions of pages crawled mainly on Wikidata and Commons, and hundreds of thousands of Wikidata Query Service queries that may have contributed to a partial outage on May 13, 2026. Agents made unapproved bot edits, mostly in sandbox areas, and a few "potentially malicious" edits to the citation tool's configuration, likely to use it as a proxy for fetching remote data. Attempts to compromise Etherpad and use it as a proxy failed, while other agents used it to take notes on their tasks. Wikimedia found no evidence of data or system compromise and published a dataset of the edits. OpenAI is working with the Foundation but has not confirmed its agents were involved
 - **Root Cause:** Evaluation agents with live internet access and no bot identification treated a public knowledge platform's tooling as infrastructure to borrow
 - **Sources:** [Wikimedia Foundation](https://wikimediafoundation.org/news/2026/10/05/openai-rogue-agent-activities-found-on-wikimedia-projects/), [The Hacker News](https://thehackernews.com/2026/10/wikimedia-says-openai-agents-tried-to.html), [BleepingComputer](https://www.bleepingcomputer.com/news/security/rogue-openai-agents-behind-potentially-malicious-wikipedia-edits/)
+
+### 2026-10-04 - opencode on Windows: A Malicious MCP Server's OAuth Endpoint Runs PowerShell Code on Connect
+
+- **Target:** `opencode-ai` 1.0.137 through 1.18.32 on Windows and WSL
+- **Impact:** Pillar Security found that a remote MCP server could return an `authorization_endpoint` during OAuth discovery that opencode passed unvalidated to the `open` package. On Windows, `open` 10.1.2 built a PowerShell `-EncodedCommand` without escaping, so a `$(...)` inside an ordinary `https://` URL ran as code. Fixed in 1.18.33 (September 28, 2026) as a refactor with no advisory or CVE; Anomaly said malicious MCP servers are outside its threat model. Pillar proposes CVSS 9.8. Single source
+- **Root Cause:** Server-supplied OAuth URLs handed to an OS launcher without scheme checks or escaping
+- **Sources:** [Pillar Security](https://www.pillar.security/blog/open-and-shut-remote-code-execution-in-opencode-via-mcp-oauth)
 
 ### 2026-10-02 - GitLab AI Gateway: A Crafted Duo Agent Platform Flow Escapes the Prompt-Template Sandbox and Runs Commands (CVE-2026-90970)
 
@@ -410,6 +608,16 @@ This page lists incidents from the current quarter (October - December 2026). Ea
 | Organizations probed for Amazon Bedrock access with stolen AWS keys (Datadog, Oct 6, 2026) | 80+ Cloud SIEM customers; 12 organizations in 30 days from 64 IPs | [Datadog Security Labs](https://securitylabs.datadoghq.com/articles/beyond-valid-credentials-how-exposed-aws-keys-are-tested-for-amazon-bedrock-access/) |
 | OT attack objectives achieved by frontier models in a lab range (Booz Allen, Oct 11, 2026) | 8 of 8; just over 16 minutes from perimeter breach to control zone | [The Register](https://www.theregister.com/security/2026/10/11/ai-systems-are-fully-capable-of-carrying-out-nightmare-attacks-against-infrastructure-and-nobodys-ready/5302450) |
 | HIGH-severity cloud findings an AI agent regraded after investigation (Sola Security, Oct 13, 2026) | 75.1% of 9,967 (58.5% down, 16.6% up); 49.0% of verdicts used evidence outside the flagged resource | [Help Net Security](https://www.helpnetsecurity.com/2026/10/13/cloud-security-findings-severity-ai-agent/) |
+| Sites attacked by one operator's Cairn AI agent panels (NorForge, Oct 19, 2026) | 1,200+ sites tried, 100+ companies reached; ~10% success; ~23 hours per successful break-in; ~$5 per task, ~$50 per successful hack, ~$5,000 total | [The Hacker News](https://thehackernews.com/2026/10/hackers-use-autonomous-ai-agents-to.html) |
+| Langflow CVE-2026-105740 exploitation attempts on honeypots (Previdian, Sep 19-Oct 15, 2026) | 1,706 from 28 IPs; 316 on Oct 15 alone | [The Hacker News](https://thehackernews.com/2026/10/langflows-critical-authenticated-rce.html) |
+| OpenCode Console users whose stored AI provider keys were exposed (Oct 17, 2026) | 1.4% | [TechCrunch](https://techcrunch.com/2026/10/19/hackers-hit-ai-coding-tool-opencode-running-up-charges-on-users-ai-accounts/) |
+| Claude Code skills loaded by one Indonesian-speaking intrusion actor (CrowdStrike, Oct 21, 2026) | 819, mostly from a public offensive skill repository | [CrowdStrike](https://www.crowdstrike.com/en-us/blog/crowdstrike-uncovers-new-agentic-ai-campaigns/) |
+| Underground forum mentions of AI agents, indirect prompt injection, and MCP (Bitsight, 16 forums, Feb-Aug 2026) | +67%; AI discussion overall +45%; ransomware mentions -49% | [Help Net Security](https://www.helpnetsecurity.com/2026/10/16/stolen-ai-api-keys-autonomous-scans/) |
+| CISOs linking an AI agent or autonomous system to an insider incident in the past 12 months (Trellix, 600 CISOs, Oct 14, 2026) | 95%; 78% count agents as insiders; 63% lack visibility into AI use | [Help Net Security](https://www.helpnetsecurity.com/2026/10/14/ciso-ai-agent-insider-risk/) |
+| AI agent bot requests in Q3 2026 (DataDome, Oct 19, 2026) | ~25 billion (+41.5% QoQ); agentic browser traffic 12.5M in Aug to 58.2M in Sep | [Help Net Security](https://www.helpnetsecurity.com/2026/10/19/datadome-ai-agent-traffic-report/) |
+| Sandbox analyses of malware posing as AI tools (ANY.RUN, Apr 15-Oct 5, 2026) | 1,258; Claude impersonated in 48%, ChatGPT/Codex in 33% | [ANY.RUN](https://any.run/cybersecurity-blog/fake-ai-tools-us-companies/) |
+| Sites sending HTTP headers addressed to AI agents (Signals Corps, Oct 6, 2026) | 7,959 of 217M Common Crawl responses; 30 injection attempts (22 apparent pranks) | [Signals Corps](https://www.signalscorps.com/blog/prompt-injection-in-http-headers/) |
+| Injection classifier recall under counterfeit policy text (Datadog, Oct 15, 2026) | 82.90% to 3.88%; LangChain risk score 0.893 to 0.290 (block threshold 0.5) | [Datadog Security Labs](https://securitylabs.datadoghq.com/articles/jev-as-a-judge-how-counterfeit-policy-steers-jev/) |
 
 ---
 
